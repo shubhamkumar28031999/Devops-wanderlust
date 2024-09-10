@@ -1,0 +1,51 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: wanderlust
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        imagePullPolicy: IfNotPresent
+        image: subham328/wanderlust-backend-image
+        ports:
+        - containerPort: 5000
+        env:
+        - name: MONGODB_URI
+          #          value: "mongodb://mongodb:27017/wanderlust?authSource=admin"
+          value: "mongodb://mongodb-service:27017/wanderlust?directConnection=true"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: wanderlust-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wanderlust-secret
+              key: password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: wanderlust
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5000
+    targetPort: 5000
+  selector:
+    app: backend
