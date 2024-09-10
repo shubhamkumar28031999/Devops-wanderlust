@@ -1,0 +1,105 @@
+version: '3.1'
+services:
+  db:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - subham-mongodata:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+        # MONGO_INITDB_DATABASE: wanderlust
+        #    ports:
+        #      - "27017:27017"
+    networks:
+      - subham_network
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+       ME_CONFIG_MONGODB_ADMINUSERNAME: root
+       ME_CONFIG_MONGODB_ADMINPASSWORD: example
+       ME_CONFIG_MONGODB_URL: mongodb://root:example@db:27017/
+         #       ME_CONFIG_BASICAUTH: false
+    networks:
+      - subham_network
+
+  backend:
+    image: subham328/wanderlust-backend-image
+    build: ./../application/backend
+    restart: always
+    environment:
+      MONGODB_URI: mongodb://db:27017/wanderlust?authSource=admin
+      DB_USERNAME: "root"
+      DB_PASSWORD: "example"
+        #      CORS_ORIGIN: http://192.168.3.162:5173
+    ports:
+      - "5000:5000"
+    links:
+      - db
+    depends_on:
+      - db
+    networks:
+      - subham_network
+
+  frontend:
+    image: subham328/wanderlust-frontend-image
+    build: ./../application/frontend/
+    restart: always
+    environment:
+      VITE_API_PATH: http://192.168.3.162:5000
+    networks:
+      - subham_network
+    ports:
+      - "5173:5173"    
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/config/prometheus.yml"
+    volumes:
+      - ./prometheus:/config:ro
+      - prometheus-data:/prometheus
+    networks:
+      - subham_network
+  node-exporter:
+    image: prom/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - subham_network
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks:
+      - subham_network
+networks:
+  subham_network:
+
+volumes:
+  subham-mongodata:
+    driver: local
+  prometheus-data:
+    driver: local
+
